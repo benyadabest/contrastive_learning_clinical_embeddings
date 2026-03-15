@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "baseten-docs": {
+      "type": "http",
+      "url": "https://docs.baseten.co/mcp"
+    }
+  }
+}

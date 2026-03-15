@@ -1,0 +1,13 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+*.egg-info/
+embeddings/
+models/
+results/
+data/
+.aidex/
+*.npy
+mimic-iii-clinical-database-demo-1.4/
+.DS_Store
