@@ -5,6 +5,8 @@ and OpenAI baselines. Supports batch processing for large note collections.
 
 from __future__ import annotations
 
+from baseten_performance_client import PerformanceClient, RequestProcessingPreference
+
 import argparse
 import json
 from pathlib import Path
@@ -13,8 +15,27 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+import os
+from dotenv import load_dotenv
+
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 EMBEDDINGS_DIR = Path(__file__).resolve().parent.parent / "embeddings"
+
+load_dotenv()
+
+gemma_client = PerformanceClient(
+    base_url="https://model-qrj9z513.api.baseten.co/environments/production/sync",
+    api_key=os.getenv("BASETEN_API_KEY")
+)
+gemma_preference = RequestProcessingPreference(
+    batch_size=16,
+    max_concurrent_requests=256,
+    max_chars_per_request=10000,
+    hedge_delay=0.5,
+    timeout_s=360,
+    total_timeout_s=6000
+)
+gemma_model_name = "library-model-embeddinggemma"
 
 
 def load_model(model_name: str = "google/embeddinggemma-300m"):
@@ -24,18 +45,26 @@ def load_model(model_name: str = "google/embeddinggemma-300m"):
 
 
 def embed_texts(
-    model,
+    client: PerformanceClient,
+    preference: RequestProcessingPreference,
+    model_name: str,
     texts: list[str],
     batch_size: int = 32,
     show_progress: bool = True,
 ) -> np.ndarray:
     """Encode a list of texts into embeddings."""
-    return model.encode(
+    return client.embed(
+        input=texts,
+        model=model_name,
+        preference=preference
+    ).numpy()
+
+    '''return model.encode(
         texts,
         batch_size=batch_size,
         show_progress_bar=show_progress,
         convert_to_numpy=True,
-    )
+    )'''
 
 
 def embed_with_openai(
@@ -69,7 +98,7 @@ def embed_with_openai(
 def embed_notes_from_file(
     input_path: Path,
     output_dir: Path,
-    model_name: str = "google/embeddinggemma-300m",
+    model_name: str = gemma_model_name,
     text_column: str = "text",
     batch_size: int = 32,
 ) -> Path:
@@ -83,8 +112,8 @@ def embed_notes_from_file(
     if model_name.startswith("text-embedding-3"):
         embeddings = embed_with_openai(texts, model_name=model_name, batch_size=batch_size)
     else:
-        model = load_model(model_name)
-        embeddings = embed_texts(model, texts, batch_size=batch_size)
+        #model = load_model(model_name)
+        embeddings = embed_texts(gemma_client, gemma_preference, model_name, texts, batch_size=batch_size)
 
     safe_name = model_name.replace("/", "_").replace("-", "_")
     output_path = output_dir / f"embeddings_{safe_name}.npy"
@@ -102,7 +131,7 @@ def embed_notes_from_file(
 def embed_temporal_pairs(
     pairs_path: Path,
     output_dir: Path,
-    model_name: str = "google/embeddinggemma-300m",
+    model_name: str = gemma_model_name,
     batch_size: int = 32,
 ) -> tuple[Path, Path]:
     """Embed anchor and positive texts from temporal pairs."""
@@ -118,11 +147,11 @@ def embed_temporal_pairs(
         anchor_embs = embed_with_openai(anchors, model_name=model_name, batch_size=batch_size)
         pos_embs = embed_with_openai(positives, model_name=model_name, batch_size=batch_size)
     else:
-        model = load_model(model_name)
+        #model = load_model(model_name)
         print("Encoding anchors...")
-        anchor_embs = embed_texts(model, anchors, batch_size=batch_size)
+        anchor_embs = embed_texts(gemma_client, gemma_preference, model_name, anchors, batch_size=batch_size)
         print("Encoding positives...")
-        pos_embs = embed_texts(model, positives, batch_size=batch_size)
+        pos_embs = embed_texts(gemma_client, gemma_preference, model_name, positives, batch_size=batch_size)
 
     safe_name = model_name.replace("/", "_").replace("-", "_")
     anchor_path = output_dir / f"anchor_embeddings_{safe_name}.npy"
@@ -138,7 +167,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate embeddings for clinical notes")
     parser.add_argument("--input", type=Path, help="Path to notes CSV or temporal_pairs.json")
     parser.add_argument("--output-dir", type=Path, default=EMBEDDINGS_DIR)
-    parser.add_argument("--model", default="google/embeddinggemma-300m",
+    parser.add_argument("--model", default=gemma_model_name,
                         help="Model name (SentenceTransformer or OpenAI)")
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--text-column", default="text")
