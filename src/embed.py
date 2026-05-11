@@ -23,10 +23,16 @@ load_dotenv()
 DEFAULT_GEMMA_MODEL = "google/embeddinggemma-300m"
 
 
-def load_model(model_name: str = DEFAULT_GEMMA_MODEL):
-    """Load a SentenceTransformer model. Auto-detects CUDA/MPS/CPU."""
+def load_model(model_name: str = DEFAULT_GEMMA_MODEL, max_length: int = 512):
+    """Load a SentenceTransformer model on GPU (FP16) when available, with capped seq length."""
+    import torch
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    dtype = torch.float16 if device == "cuda" else torch.float32
+    print(f"Loading {model_name} on {device} ({dtype})")
     from sentence_transformers import SentenceTransformer
-    return SentenceTransformer(model_name)
+    model = SentenceTransformer(model_name, device=device, model_kwargs={"torch_dtype": dtype})
+    model.max_seq_length = max_length
+    return model
 
 
 def embed_texts(
@@ -74,6 +80,7 @@ def embed_notes_from_file(
     model_name: str = DEFAULT_GEMMA_MODEL,
     text_column: str = "text",
     batch_size: int = 32,
+    max_length: int = 512,
 ) -> Path:
     """Load notes from CSV, generate embeddings, save as .npy."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -85,7 +92,7 @@ def embed_notes_from_file(
     if model_name.startswith("text-embedding-3"):
         embeddings = embed_with_openai(texts, model_name=model_name, batch_size=batch_size)
     else:
-        model = load_model(model_name)
+        model = load_model(model_name, max_length=max_length)
         embeddings = embed_texts(model, texts, batch_size=batch_size)
 
     safe_name = model_name.replace("/", "_").replace("-", "_")
@@ -105,6 +112,7 @@ def embed_temporal_pairs(
     output_dir: Path,
     model_name: str = DEFAULT_GEMMA_MODEL,
     batch_size: int = 32,
+    max_length: int = 512,
 ) -> tuple[Path, Path]:
     """Embed anchor and positive texts from temporal pairs."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -119,7 +127,7 @@ def embed_temporal_pairs(
         anchor_embs = embed_with_openai(anchors, model_name=model_name, batch_size=batch_size)
         pos_embs = embed_with_openai(positives, model_name=model_name, batch_size=batch_size)
     else:
-        model = load_model(model_name)
+        model = load_model(model_name, max_length=max_length)
         print(f"Encoding anchors ({len(anchors)} texts)...")
         anchor_embs = embed_texts(model, anchors, batch_size=batch_size)
         print(f"Encoding positives ({len(positives)} texts)...")
@@ -142,6 +150,8 @@ def main() -> None:
     parser.add_argument("--model", default=DEFAULT_GEMMA_MODEL,
                         help="Model name (SentenceTransformer or OpenAI)")
     parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--max-length", type=int, default=512,
+                        help="Max token length for SentenceTransformer (default 512)")
     parser.add_argument("--text-column", default="text")
     parser.add_argument("--mode", choices=["notes", "pairs"], default="notes",
                         help="'notes' for per-note embeddings, 'pairs' for temporal pair embeddings")
@@ -154,9 +164,9 @@ def main() -> None:
             args.input = DATA_DIR / "notes_with_icd.csv"
 
     if args.mode == "pairs":
-        embed_temporal_pairs(args.input, args.output_dir, args.model, args.batch_size)
+        embed_temporal_pairs(args.input, args.output_dir, args.model, args.batch_size, args.max_length)
     else:
-        embed_notes_from_file(args.input, args.output_dir, args.model, args.text_column, args.batch_size)
+        embed_notes_from_file(args.input, args.output_dir, args.model, args.text_column, args.batch_size, args.max_length)
 
 
 if __name__ == "__main__":
