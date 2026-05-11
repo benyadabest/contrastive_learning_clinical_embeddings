@@ -5,66 +5,43 @@ and OpenAI baselines. Supports batch processing for large note collections.
 
 from __future__ import annotations
 
-from baseten_performance_client import PerformanceClient, RequestProcessingPreference
-
 import argparse
 import json
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-
-import os
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 EMBEDDINGS_DIR = Path(__file__).resolve().parent.parent / "embeddings"
 
 load_dotenv()
 
-gemma_client = PerformanceClient(
-    base_url="https://model-wx460ozq.api.baseten.co/environments/production/sync",
-    api_key=os.getenv("BASETEN_API_KEY")
-)
-gemma_preference = RequestProcessingPreference(
-    batch_size=16,
-    max_concurrent_requests=256,
-    max_chars_per_request=10000,
-    hedge_delay=0.5,
-    timeout_s=360,
-    total_timeout_s=1800
-)
-gemma_model_name = "library-model-embeddinggemma"
+DEFAULT_GEMMA_MODEL = "google/embeddinggemma-300m"
 
 
-def load_model(model_name: str = "google/embeddinggemma-300m"):
-    """Load a SentenceTransformer model."""
+def load_model(model_name: str = DEFAULT_GEMMA_MODEL):
+    """Load a SentenceTransformer model. Auto-detects CUDA/MPS/CPU."""
     from sentence_transformers import SentenceTransformer
     return SentenceTransformer(model_name)
 
 
 def embed_texts(
-    client: PerformanceClient,
-    preference: RequestProcessingPreference,
-    model_name: str,
+    model,
     texts: list[str],
     batch_size: int = 32,
     show_progress: bool = True,
 ) -> np.ndarray:
     """Encode a list of texts into embeddings."""
-    return client.embed(
-        input=texts,
-        model=model_name,
-        preference=preference
-    ).numpy()
-
-    '''return model.encode(
+    return model.encode(
         texts,
         batch_size=batch_size,
         show_progress_bar=show_progress,
         convert_to_numpy=True,
-    )'''
+    )
 
 
 def embed_with_openai(
@@ -73,12 +50,8 @@ def embed_with_openai(
     batch_size: int = 100,
 ) -> np.ndarray:
     """Generate embeddings using OpenAI API."""
-    import os
-
-    from dotenv import load_dotenv
     from openai import OpenAI
 
-    load_dotenv()
     api_key = os.getenv("OPENAI-API-KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI-API-KEY or OPENAI_API_KEY not found in .env")
@@ -98,7 +71,7 @@ def embed_with_openai(
 def embed_notes_from_file(
     input_path: Path,
     output_dir: Path,
-    model_name: str = gemma_model_name,
+    model_name: str = DEFAULT_GEMMA_MODEL,
     text_column: str = "text",
     batch_size: int = 32,
 ) -> Path:
@@ -112,15 +85,14 @@ def embed_notes_from_file(
     if model_name.startswith("text-embedding-3"):
         embeddings = embed_with_openai(texts, model_name=model_name, batch_size=batch_size)
     else:
-        #model = load_model(model_name)
-        embeddings = embed_texts(gemma_client, gemma_preference, model_name, texts, batch_size=batch_size)
+        model = load_model(model_name)
+        embeddings = embed_texts(model, texts, batch_size=batch_size)
 
     safe_name = model_name.replace("/", "_").replace("-", "_")
     output_path = output_dir / f"embeddings_{safe_name}.npy"
     np.save(output_path, embeddings)
     print(f"Saved embeddings: {embeddings.shape} -> {output_path}")
 
-    # Also save metadata (subject_id, hadm_id) alongside
     meta_cols = [c for c in ["subject_id", "hadm_id", "chartdate", "category"] if c in df.columns]
     if meta_cols:
         df[meta_cols].to_csv(output_dir / f"metadata_{safe_name}.csv", index=False)
@@ -131,7 +103,7 @@ def embed_notes_from_file(
 def embed_temporal_pairs(
     pairs_path: Path,
     output_dir: Path,
-    model_name: str = gemma_model_name,
+    model_name: str = DEFAULT_GEMMA_MODEL,
     batch_size: int = 32,
 ) -> tuple[Path, Path]:
     """Embed anchor and positive texts from temporal pairs."""
@@ -147,11 +119,11 @@ def embed_temporal_pairs(
         anchor_embs = embed_with_openai(anchors, model_name=model_name, batch_size=batch_size)
         pos_embs = embed_with_openai(positives, model_name=model_name, batch_size=batch_size)
     else:
-        #model = load_model(model_name)
-        print(f"Encoding anchors ({len(anchors)} texts to embed)...")
-        anchor_embs = embed_texts(gemma_client, gemma_preference, model_name, anchors, batch_size=batch_size)
-        print(f"Encoding positives ({len(positives)} texts to embed)...")
-        pos_embs = embed_texts(gemma_client, gemma_preference, model_name, positives, batch_size=batch_size)
+        model = load_model(model_name)
+        print(f"Encoding anchors ({len(anchors)} texts)...")
+        anchor_embs = embed_texts(model, anchors, batch_size=batch_size)
+        print(f"Encoding positives ({len(positives)} texts)...")
+        pos_embs = embed_texts(model, positives, batch_size=batch_size)
 
     safe_name = model_name.replace("/", "_").replace("-", "_")
     anchor_path = output_dir / f"anchor_embeddings_{safe_name}.npy"
@@ -167,7 +139,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate embeddings for clinical notes")
     parser.add_argument("--input", type=Path, help="Path to notes CSV or temporal_pairs.json")
     parser.add_argument("--output-dir", type=Path, default=EMBEDDINGS_DIR)
-    parser.add_argument("--model", default=gemma_model_name,
+    parser.add_argument("--model", default=DEFAULT_GEMMA_MODEL,
                         help="Model name (SentenceTransformer or OpenAI)")
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--text-column", default="text")
