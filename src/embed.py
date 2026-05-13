@@ -12,8 +12,11 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import tiktoken
 from dotenv import load_dotenv
 from tqdm import tqdm
+import time
+import random
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 EMBEDDINGS_DIR = Path(__file__).resolve().parent.parent / "embeddings"
@@ -22,12 +25,24 @@ load_dotenv()
 
 DEFAULT_GEMMA_MODEL = "google/embeddinggemma-300m"
 
+MAX_TOKENS = 2048
+
+tokenizer = tiktoken.get_encoding("cl100k_base")
 
 def load_model(model_name: str = DEFAULT_GEMMA_MODEL):
     """Load a SentenceTransformer model. Auto-detects CUDA/MPS/CPU."""
     from sentence_transformers import SentenceTransformer
     return SentenceTransformer(model_name)
 
+def truncate_text(text, max_tokens=MAX_TOKENS):
+    tokens = tokenizer.encode(text)
+
+    if len(tokens) <= max_tokens:
+        return text
+
+    truncated = tokens[:max_tokens]
+
+    return tokenizer.decode(truncated)
 
 def embed_texts(
     model,
@@ -51,19 +66,47 @@ def embed_with_openai(
 ) -> np.ndarray:
     """Generate embeddings using OpenAI API."""
     from openai import OpenAI
+    from openai import RateLimitError
 
     api_key = os.getenv("OPENAI-API-KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI-API-KEY or OPENAI_API_KEY not found in .env")
 
+    texts = [truncate_text(t) for t in texts]
+
     client = OpenAI(api_key=api_key)
     all_embeddings = []
 
+    max_retries = 5
+    initial_delay = 1.0
     for i in tqdm(range(0, len(texts), batch_size), desc=f"OpenAI {model_name}"):
         batch = texts[i : i + batch_size]
-        response = client.embeddings.create(input=batch, model=model_name)
-        batch_embeddings = [item.embedding for item in response.data]
-        all_embeddings.extend(batch_embeddings)
+        retry_count = 0
+        delay = initial_delay
+        while True:
+          try:
+            response = client.embeddings.create(input=batch, model=model_name)
+            batch_embeddings = [item.embedding for item in response.data]
+            all_embeddings.extend(batch_embeddings)
+            break
+          except RateLimitError as e:
+              retry_count += 1
+
+              if retry_count > max_retries:
+                  raise RuntimeError(
+                      f"Maximum number of retries ({max_retries}) exceeded"
+                  ) from e
+
+              delay *= 2 * (1 + random.random())
+
+              print(
+                  f"\nRate limit hit. "
+                  f"Retry {retry_count}/{max_retries} "
+                  f"in {delay:.2f} seconds..."
+              )
+
+              time.sleep(delay)
+
 
     return np.array(all_embeddings)
 
