@@ -210,7 +210,6 @@ def create_umap_visualization(
 
 def run_full_comparison(
     models: list[dict[str, str]],
-    pairs_path: Path = DATA_DIR / "temporal_pairs.json",
     notes_path: Path = DATA_DIR / "notes_with_icd.csv",
     output_dir: Path = RESULTS_DIR,
 ) -> None:
@@ -280,6 +279,7 @@ def main() -> None:
     parser.add_argument("--positive-embeddings", type=Path)
     parser.add_argument("--notes", type=Path, default=DATA_DIR / "notes_with_icd.csv")
     parser.add_argument("--output-dir", type=Path, default=RESULTS_DIR)
+    parser.add_argument("--output-name", type=str, default="umap_embeddings.png")
     parser.add_argument("--top-n-codes", type=int, default=25)
     args = parser.parse_args()
 
@@ -313,7 +313,7 @@ def main() -> None:
         notes_df = pd.read_csv(args.notes)
         create_umap_visualization(
             embeddings, notes_df,
-            output_path=args.output_dir / "umap_embeddings.png",
+            output_path=args.output_dir / args.output_name,
         )
 
     elif args.task == "compare":
@@ -321,8 +321,10 @@ def main() -> None:
             {"name": "text-embedding-3-small"},
             {"name": "text-embedding-3-large"},
             {"name": "google/embeddinggemma-300m"},
+            {"name": "models_embeddinggemma_infonce_best"},
+            {"name": "models_embeddinggemma_hierarchical_best"}
         ]
-        run_full_comparison(models, output_dir=args.output_dir)
+        run_full_comparison(models, notes_path=args.notes, output_dir=args.output_dir)
 
 
 if __name__ == "__main__":
