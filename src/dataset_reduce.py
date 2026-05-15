@@ -25,6 +25,10 @@ pairs_df_cut = pairs_df[pairs_df['subject_id'].isin(rand_patient_ids)]
 print(pairs_df_cut.shape)
 pairs_df_cut.to_json('data/temporal_pairs_small.json', orient='records', indent=2)
 
+pairs_df_test = pairs_df[pairs_df['subject_id'].isin(test_patient_ids)]
+print(pairs_df_test.shape)
+pairs_df_test.to_json('data/temporal_pairs_small_test.json', orient='records', indent=2)
+
 notes_df = pd.read_csv('data/notes_with_icd.csv')
 notes_df_cut = notes_df[notes_df['subject_id'].isin(rand_patient_ids)]
 print(notes_df_cut.shape)

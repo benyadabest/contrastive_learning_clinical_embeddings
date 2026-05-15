@@ -95,7 +95,7 @@ def evaluate_diagnosis_prediction(
     if "icd_codes" in notes_df.columns:
         notes_df = notes_df.copy()
         notes_df["icd_codes"] = notes_df["icd_codes"].apply(
-            lambda x: eval(x) if isinstance(x, str) else (x if isinstance(x, list) else [])
+            lambda x: eval(x) if isinstance(x, str) and (x.strip('[] ') != 'nan') else (x if isinstance(x, list) else [])
         )
     else:
         raise ValueError("notes_df must have 'icd_codes' column")
