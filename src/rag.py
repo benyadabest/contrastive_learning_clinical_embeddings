@@ -371,8 +371,16 @@ def patient_trajectory(
     rows = corpus.meta[corpus.meta["subject_id"] == subject_id].copy()
     if len(rows) < 2:
         raise ValueError(f"subject_id {subject_id} has <2 anchor notes; trajectory undefined.")
-    rows = rows.sort_values("anchor_date").reset_index()
-    indices = rows["index"].values
+
+    # Deterministic ordering for reproducible trajectory statistics:
+    # anchor_date is often day-level only, so we break ties with stable secondary keys.
+    rows["row_id"] = rows.index
+    rows["anchor_date_dt"] = pd.to_datetime(rows["anchor_date"], errors="coerce")
+    rows = rows.sort_values(
+        ["anchor_date_dt", "anchor_hadm_id", "anchor_category", "row_id"],
+        kind="mergesort",
+    ).reset_index(drop=True)
+    indices = rows["row_id"].values
     vecs = corpus.embeddings[indices]
 
     cos_sim_prev = np.empty(len(vecs))
@@ -398,9 +406,169 @@ def patient_trajectory(
 
     return {
         "subject_id": int(subject_id),
-        "notes": rows[["anchor_date", "anchor_category", "anchor_hadm_id",
-                       "cos_sim_prev", "l2_prev", "pca1", "pca2"]],
+        "notes": rows[[
+            "anchor_date", "anchor_date_dt", "anchor_category", "anchor_hadm_id",
+            "cos_sim_prev", "l2_prev", "pca1", "pca2", "row_id",
+        ]],
         "embeddings": vecs,
+    }
+
+
+def _resolve_mimic_event_paths(
+    mimic_root: Path | None = None,
+) -> tuple[Path, Path]:
+    """
+    Resolve ADMISSIONS and ICUSTAYS CSV paths.
+
+    Prefers explicit `mimic_root`; otherwise uses the project default
+    `MIMIC -III (10000 patients)/`.
+    """
+    if mimic_root is None:
+        mimic_root = ROOT / "MIMIC -III (10000 patients)"
+    admissions_path = mimic_root / "ADMISSIONS" / "ADMISSIONS_sorted.csv"
+    icu_path = mimic_root / "ICUSTAYS" / "ICUSTAYS_sorted.csv"
+    if not admissions_path.exists():
+        raise FileNotFoundError(f"Missing ADMISSIONS file: {admissions_path}")
+    if not icu_path.exists():
+        raise FileNotFoundError(f"Missing ICUSTAYS file: {icu_path}")
+    return admissions_path, icu_path
+
+
+def load_patient_events(
+    subject_id: int,
+    mimic_root: Path | None = None,
+) -> pd.DataFrame:
+    """
+    Load admission and ICU boundary events for one patient.
+
+    Returns a DataFrame with columns:
+      - event_time (datetime64)
+      - event_type (admit/discharge/icu_in/icu_out)
+      - hadm_id (nullable int)
+    """
+    admissions_path, icu_path = _resolve_mimic_event_paths(mimic_root=mimic_root)
+
+    adm = pd.read_csv(
+        admissions_path,
+        usecols=["SUBJECT_ID", "HADM_ID", "ADMITTIME", "DISCHTIME"],
+        parse_dates=["ADMITTIME", "DISCHTIME"],
+    )
+    adm.columns = [c.lower() for c in adm.columns]
+    adm = adm[adm["subject_id"] == int(subject_id)].copy()
+
+    icu = pd.read_csv(
+        icu_path,
+        usecols=["SUBJECT_ID", "HADM_ID", "INTIME", "OUTTIME"],
+        parse_dates=["INTIME", "OUTTIME"],
+    )
+    icu.columns = [c.lower() for c in icu.columns]
+    icu = icu[icu["subject_id"] == int(subject_id)].copy()
+
+    events = []
+    for _, r in adm.iterrows():
+        hadm = int(r["hadm_id"]) if pd.notna(r["hadm_id"]) else None
+        if pd.notna(r["admittime"]):
+            events.append({"event_time": r["admittime"], "event_type": "admit", "hadm_id": hadm})
+        if pd.notna(r["dischtime"]):
+            events.append({"event_time": r["dischtime"], "event_type": "discharge", "hadm_id": hadm})
+
+    for _, r in icu.iterrows():
+        hadm = int(r["hadm_id"]) if pd.notna(r["hadm_id"]) else None
+        if pd.notna(r["intime"]):
+            events.append({"event_time": r["intime"], "event_type": "icu_in", "hadm_id": hadm})
+        if pd.notna(r["outtime"]):
+            events.append({"event_time": r["outtime"], "event_type": "icu_out", "hadm_id": hadm})
+
+    if not events:
+        return pd.DataFrame(columns=["event_time", "event_type", "hadm_id"])
+    out = pd.DataFrame(events).sort_values("event_time").reset_index(drop=True)
+    return out
+
+
+def evaluate_trajectory_event_alignment(
+    corpus: CorpusIndex,
+    subject_id: int,
+    spike_quantile: float = 0.95,
+    window_notes: int = 2,
+    n_permutations: int = 1000,
+    seed: int = 42,
+    mimic_root: Path | None = None,
+) -> dict:
+    """
+    Quantify whether embedding-velocity spikes align with clinical boundary events.
+
+    Method:
+      1) Compute note-level trajectory and define spikes as notes with l2_prev above
+         the specified quantile.
+      2) Load ADMISSIONS + ICUSTAYS events and map each event to its nearest note.
+      3) A spike is "aligned" if within ±`window_notes` of any mapped event note.
+      4) Compare observed alignment rate to a permutation baseline.
+    """
+    traj = patient_trajectory(corpus, subject_id)
+    notes = traj["notes"].copy()
+    notes["anchor_date_dt"] = pd.to_datetime(notes["anchor_date_dt"], errors="coerce")
+    valid_notes = notes[notes["anchor_date_dt"].notna()].copy()
+    if len(valid_notes) < 5:
+        return {"error": "insufficient_notes_with_valid_datetimes"}
+
+    events = load_patient_events(subject_id=subject_id, mimic_root=mimic_root)
+    if len(events) == 0:
+        return {"error": "no_admission_or_icu_events_found"}
+
+    # Spike definition ignores first point (l2_prev=0 by construction).
+    l2 = notes["l2_prev"].to_numpy(dtype=float)
+    valid_l2 = l2[1:] if len(l2) > 1 else l2
+    threshold = float(np.quantile(valid_l2, spike_quantile))
+    spike_idx = np.where(l2 > threshold)[0]
+    if len(spike_idx) == 0:
+        return {"error": "no_spikes_found_for_quantile", "threshold": threshold}
+
+    note_times = notes["anchor_date_dt"].tolist()
+    event_note_idx = []
+    for _, ev in events.iterrows():
+        t = ev["event_time"]
+        # nearest note in absolute time
+        distances = [abs((nt - t).total_seconds()) if pd.notna(nt) else np.inf for nt in note_times]
+        nearest = int(np.argmin(distances))
+        event_note_idx.append(nearest)
+    event_note_idx = np.array(sorted(set(event_note_idx)), dtype=int)
+
+    def _match_rate(spikes: np.ndarray) -> float:
+        if len(spikes) == 0:
+            return 0.0
+        matched = 0
+        for s in spikes:
+            if np.any(np.abs(event_note_idx - s) <= window_notes):
+                matched += 1
+        return float(matched / len(spikes))
+
+    observed_rate = _match_rate(spike_idx)
+
+    rng = np.random.RandomState(seed)
+    eligible = np.arange(1, len(notes), dtype=int)  # exclude index 0
+    perm_rates = np.empty(n_permutations, dtype=float)
+    for i in range(n_permutations):
+        sampled = rng.choice(eligible, size=len(spike_idx), replace=False)
+        perm_rates[i] = _match_rate(np.sort(sampled))
+    baseline_mean = float(np.mean(perm_rates))
+    p_value = float((1.0 + np.sum(perm_rates >= observed_rate)) / (1.0 + n_permutations))
+    lift = float(observed_rate / max(baseline_mean, 1e-8))
+
+    return {
+        "subject_id": int(subject_id),
+        "n_notes": int(len(notes)),
+        "n_events": int(len(events)),
+        "event_types": events["event_type"].value_counts().to_dict(),
+        "spike_quantile": float(spike_quantile),
+        "window_notes": int(window_notes),
+        "threshold_l2": threshold,
+        "n_spikes": int(len(spike_idx)),
+        "spike_indices": spike_idx.tolist(),
+        "event_nearest_note_indices": event_note_idx.tolist(),
+        "observed_spike_event_match_rate": observed_rate,
+        "permutation_baseline_mean_rate": baseline_mean,
+        "match_rate_lift": lift,
+        "permutation_p_value_one_sided": p_value,
     }
 
 
