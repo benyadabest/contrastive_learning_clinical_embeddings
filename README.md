@@ -8,12 +8,21 @@ Based on [Radical Health AI's approach](https://radicalhealth.ai/blog/training-a
 
 Both fine-tuned checkpoints are hosted on the Hugging Face Hub:
 
-| Loss | HF Hub | Top-5 Recall | Top-10 Recall | Macro AUROC |
-|---|---|---:|---:|---:|
-| Temporal InfoNCE | [`gaspard-loeillot/embeddinggemma-mimic-infonce`](https://huggingface.co/gaspard-loeillot/embeddinggemma-mimic-infonce) | 47.2% | 66.7% | 0.945 |
-| Hierarchical (HiMulCon-style) | [`gaspard-loeillot/embeddinggemma-mimic-hierarchical`](https://huggingface.co/gaspard-loeillot/embeddinggemma-mimic-hierarchical) | **67.1%** | **84.4%** | **0.947** |
+| Loss | HF Hub | Top-5 Recall (diagnostic) | Top-10 Recall (diagnostic) | Top-5 Recall (held-out) | Top-10 Recall (held-out) | Macro AUROC |
+|---|---|---:|---:|---:|---:|---:|
+| Temporal InfoNCE | [`gaspard-loeillot/embeddinggemma-mimic-infonce`](https://huggingface.co/gaspard-loeillot/embeddinggemma-mimic-infonce) | 47.14% | 66.69% | 28.30% | 40.52% | 0.9445 |
+| Hierarchical (HiMulCon-style) | [`gaspard-loeillot/embeddinggemma-mimic-hierarchical`](https://huggingface.co/gaspard-loeillot/embeddinggemma-mimic-hierarchical) | **67.13%** | **84.43%** | 27.86% | **40.80%** | **0.9474** |
 
 Load via `SentenceTransformer("gaspard-loeillot/embeddinggemma-mimic-hierarchical")`.
+
+95% bootstrap CIs (n=1000, seed=42):
+
+| Loss | Top-5 Recall (diagnostic) CI | Top-10 Recall (diagnostic) CI | Top-5 Recall (held-out) CI | Top-10 Recall (held-out) CI | Macro AUROC CI* |
+|---|---:|---:|---:|---:|---:|
+| Temporal InfoNCE | [46.51%, 47.74%] | [66.05%, 67.30%] | [26.31%, 30.46%] | [38.42%, 42.73%] | [0.9325, 0.9562] |
+| Hierarchical (HiMulCon-style) | [66.54%, 67.69%] | [84.00%, 84.89%] | [25.92%, 29.96%] | [38.64%, 43.06%] | [0.9361, 0.9586] |
+
+\* Macro-AUROC CI is class-bootstrap over `per_class_auroc` (not per-note test-row bootstrap), since per-note probability arrays are not persisted in current artifacts.
 
 ## Approach
 
@@ -65,13 +74,19 @@ python src/train_contrastive.py --loss hierarchical --epochs 10
 # 4. Evaluate
 python src/evaluate.py --task compare
 python src/evaluate.py --task umap --embeddings embeddings/<file>.npy
+python src/evaluate.py --task heldout-recall --heldout-patients 50 --heldout-seed 42 --fail-on-model-error --no-json-fallback
+python src/report_metrics.py --bootstrap-n 1000 --seed 42
 ```
+
+`compare` recall values are training-distribution diagnostics. Use `heldout-recall` as
+the primary generalization metric.
 
 ## Evaluation
 
 | Metric | Task |
 |--------|------|
 | Top-5 recall accuracy | Retrieving next patient note from embeddings |
+| Patient-held-out recall | Next-note retrieval on patients unseen during contrastive fine-tuning |
 | Macro AUROC | Multi-label ICD-9 diagnosis prediction (logistic regression on frozen embeddings) |
 | UMAP visualization | Embedding clusters colored by ICD chapter |
 
@@ -105,6 +120,18 @@ python src/evaluate.py --task umap-anchors --all-models --n-samples 5000
 ```
 
 Generates 10 PNGs (5 models × 2 colorings) plus `results/umap_anchors_silhouette.json`.
+
+## Report-ready statistical artifacts
+
+```bash
+python src/report_metrics.py --bootstrap-n 1000 --seed 42
+```
+
+Generates:
+- `results/bootstrap_recall_ci_table.csv`
+- `results/bootstrap_auroc_ci_table.csv`
+- `results/bootstrap_ci_summary.json`
+- `results/per_class_auroc_grouped.png`
 
 ## Authors
 
