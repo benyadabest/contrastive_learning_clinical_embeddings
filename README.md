@@ -1,13 +1,4 @@
----
-title: Clinical Embedding Studio
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
-short_description: MIMIC-III RAG, cohort discovery, and patient trajectory
----
+majority of our work over the semester was in Google Colab!
 
 # Contrastive Learning for Clinical Embeddings
 
