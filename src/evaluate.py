@@ -190,7 +190,7 @@ def create_umap_visualization(
     if "icd_codes" in notes_df.columns:
         chapters = notes_df["icd_codes"].apply(
             lambda x: get_icd_chapter((eval(x) if isinstance(x, str) else x)[0])
-            if (isinstance(x, str) and eval(x)) or (isinstance(x, list) and x)
+            if (isinstance(x, str) and x.strip('[] ') != 'nan' and eval(x)) or (isinstance(x, list) and x)
             else "none"
         )
     else:
