@@ -1,8 +1,33 @@
+---
+title: Clinical Embedding Studio
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+short_description: MIMIC-III RAG, cohort discovery, and patient trajectory
+---
+
 # Contrastive Learning for Clinical Embeddings
 
 Fine-tuning [EmbeddingGemma-300m](https://huggingface.co/google/embeddinggemma-300m) on MIMIC-III clinical notes using temporal and hierarchical contrastive learning to produce embeddings that capture clinical semantics over stylistic differences.
 
 Based on [Radical Health AI's approach](https://radicalhealth.ai/blog/training-a-model-that-understands-your-notes-7x-better-than-openai), which achieved 0.934 AUROC on diagnosis prediction vs 0.809 for OpenAI.
+
+## Live demo
+
+A staff-facing FastAPI copilot exercising all four downstream applications (semantic note search, evidence-grounded Q&A, cohort discovery by patient or free-text phenotype, and patient-trajectory analysis with LLM-generated NL interpretation) is deployed on Hugging Face Spaces:
+
+**→ [huggingface.co/spaces/judoben/constrastive-embeddings](https://huggingface.co/spaces/judoben/constrastive-embeddings)**
+
+The public Space runs against a synthetic corpus (the MIMIC-III data use agreement prohibits redistribution of raw notes); the app architecture and runtime behaviour are identical to a local run against the real corpus — see [Frontend: downstream apps demo](#frontend-downstream-apps-demo) for both deployment paths.
+
+## Project artifacts
+
+- **Final report:** [docs/4701_project_report.pdf](docs/4701_project_report.pdf)
+- **End-to-end training pipeline:** [notebooks/medical_embeddings.ipynb](notebooks/medical_embeddings.ipynb) — the Colab notebook covering MIMIC-III download, preprocessing, baseline + fine-tuned embedding generation, contrastive training (InfoNCE + hierarchical), and headline evaluation
+- **Downstream applications demo:** [notebooks/downstream_apps.ipynb](notebooks/downstream_apps.ipynb) — notebook-level demonstration of the four downstream tasks (precursor to the FastAPI app)
 
 ## Released models
 
@@ -108,10 +133,65 @@ src/
 ├── train_contrastive.py   # Contrastive fine-tuning (InfoNCE + hierarchical)
 ├── evaluate.py            # Note recall, diagnosis prediction, UMAP (incl. UMAP-by-category)
 ├── push_to_hub.py         # One-shot script to push checkpoints to HF Hub
-└── rag.py                 # FAISS index + patient search + RAG + cohort + trajectory
+├── rag.py                 # FAISS index + patient search + RAG + cohort + trajectory
+└── api/                   # FastAPI frontend wrapping the four downstream apps
+    ├── main.py            # App + lifespan (builds CorpusIndex once at startup)
+    ├── routes.py          # /api/{health,patients,search,ask,similar-patients,trajectory}
+    ├── deps.py            # CorpusState singleton + patient-pool cache
+    ├── schemas.py         # Pydantic request bodies
+    └── static/            # Single-page UI (index.html + app.js + style.css)
 notebooks/
-└── downstream_apps.ipynb  # Demo of the four downstream applications
+├── medical_embeddings.ipynb   # End-to-end Colab pipeline (data → embed → fine-tune → eval)
+└── downstream_apps.ipynb      # Notebook demo of the four downstream applications
+scripts/
+├── make_synthetic_corpus.py   # Build a tiny stand-in corpus for the frontend smoke test
+└── run_api_synthetic.sh       # Boot the API against the synthetic corpus
+docs/
+├── 4701_project_report.pdf    # Final project report
+├── assignment.md
+└── radical_health_blog.md
+Dockerfile                     # Container build (HF Spaces / generic host)
 ```
+
+## Frontend: downstream apps demo
+
+FastAPI + vanilla HTML/JS app that wraps `src/rag.py` and serves the four downstream
+applications (search / RAG / cohort / trajectory) at `http://localhost:8000`.
+
+### Run against the real corpus
+
+Requires the cached anchor embeddings and the row-aligned `temporal_pairs_small.json`
+(both gitignored — produced by `embed.py` + `dataset_reduce.py`):
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+Defaults to the hierarchical fine-tuned model from HF Hub. Override via env vars
+(see [src/api/main.py](src/api/main.py)) to swap model, pairs file, or ICD map.
+
+If `OPENAI_API_KEY` is set in `.env`, the **Ask** tab returns an LLM-generated answer
+grounded in the retrieved notes. Otherwise it returns retrieval only.
+
+### Run against a synthetic corpus (no MIMIC required)
+
+For demoing the UI without the full embedding pipeline:
+
+```bash
+python scripts/make_synthetic_corpus.py   # ~80 notes, ~30 s
+scripts/run_api_synthetic.sh              # boots on port 8765
+```
+
+Synthetic data uses `sentence-transformers/all-MiniLM-L6-v2` (small, fast load) so
+similarity scores remain meaningful: the same model encodes the corpus and the
+query.
+
+### Deploy
+
+The provided `Dockerfile` works as-is for [Hugging Face Spaces (Docker SDK)](https://huggingface.co/docs/hub/spaces-sdks-docker)
+and generic container hosts. The image expects `data/` and `embeddings/` to be
+populated at build time; for a public deploy, bundle a non-PHI subset of MIMIC
+into the build context.
 
 ## Reproducing the headline UMAP-by-category finding
 

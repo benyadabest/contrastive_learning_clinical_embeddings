@@ -1,0 +1,576 @@
+[
+  {
+    "subject_id": 1013,
+    "anchor_hadm_id": 100013,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-06-13",
+    "anchor_text": "ICU day 2: Worsening encephalopathy, intubated for airway protection. Total bilirubin up to 18. INR 2.8."
+  },
+  {
+    "subject_id": 1008,
+    "anchor_hadm_id": 100008,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-01-07",
+    "anchor_text": "NICU day 4: Off CPAP, on nasal cannula 1L. Continues to gain weight. Bilirubin trending down with phototherapy."
+  },
+  {
+    "subject_id": 1002,
+    "anchor_hadm_id": 100002,
+    "anchor_category": "Echo",
+    "anchor_date": "2150-07-04",
+    "anchor_text": "Admission note: 62-year-old man presents with fever 39.4, hypotension, lactate 4.5, started on broad-spectrum antibiotics meropenem and vancomycin. Sepsis workup underway."
+  },
+  {
+    "subject_id": 1010,
+    "anchor_hadm_id": 100010,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-03-20",
+    "anchor_text": "ED presentation: Sudden right-sided weakness and dysarthria, NIH stroke scale 12. CT head negative for hemorrhage. tPA window evaluated."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Echo",
+    "anchor_date": "2151-01-06",
+    "anchor_text": "ID rounds: blood cultures NTD x48h. Antibiotics narrowed to ceftriaxone for E. coli sensitivity profile."
+  },
+  {
+    "subject_id": 1011,
+    "anchor_hadm_id": 100011,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-04-04",
+    "anchor_text": "Day 2: Mild improvement in motor function, NIHSS now 8. Started on aspirin and atorvastatin. Speech therapy evaluating."
+  },
+  {
+    "subject_id": 1003,
+    "anchor_hadm_id": 100003,
+    "anchor_category": "ECG",
+    "anchor_date": "2150-08-19",
+    "anchor_text": "Discharge summary: Patient extubated, transferred to step-down. Completing 14-day antibiotic course for E. coli bacteremia."
+  },
+  {
+    "subject_id": 1001,
+    "anchor_hadm_id": 100001,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-06-03",
+    "anchor_text": "Renal note: Acute kidney injury, creatinine up from 1.0 to 2.6. Urine output minimal at 15 mL/hr. CVVH being considered."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Echo",
+    "anchor_date": "2151-01-12",
+    "anchor_text": "Social work: discharge planning, discussing rehab options with family."
+  },
+  {
+    "subject_id": 1012,
+    "anchor_hadm_id": 100012,
+    "anchor_category": "Discharge summary",
+    "anchor_date": "2150-05-09",
+    "anchor_text": "Stroke unit admission: MRI confirms left MCA territory ischemic stroke. tPA given within window. Heparin gtt started."
+  },
+  {
+    "subject_id": 1006,
+    "anchor_hadm_id": 100006,
+    "anchor_category": "Echo",
+    "anchor_date": "2150-11-06",
+    "anchor_text": "Pre-op note: 68-year-old with three-vessel disease, scheduled for CABG x3. EF 45%, no prior MI."
+  },
+  {
+    "subject_id": 1017,
+    "anchor_hadm_id": 100017,
+    "anchor_category": "Nursing/other",
+    "anchor_date": "2150-10-08",
+    "anchor_text": "ED: Patient with cirrhosis presents with hematemesis and melena. Hemoglobin 6.8. Transfused 2 units PRBC."
+  },
+  {
+    "subject_id": 1007,
+    "anchor_hadm_id": 100007,
+    "anchor_category": "Nursing/other",
+    "anchor_date": "2150-12-08",
+    "anchor_text": "NICU day 1: Infant placed on CPAP +5, FiO2 35%. Chest X-ray consistent with TTN. Maintaining oxygen saturation 92-96%."
+  },
+  {
+    "subject_id": 1012,
+    "anchor_hadm_id": 100012,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-05-10",
+    "anchor_text": "Day 2: Mild improvement in motor function, NIHSS now 8. Started on aspirin and atorvastatin. Speech therapy evaluating."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Radiology",
+    "anchor_date": "2151-01-08",
+    "anchor_text": "Nutrition: tolerating oral diet, advancing as tolerated. PO intake 60% of goal."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Radiology",
+    "anchor_date": "2151-01-14",
+    "anchor_text": "Workup for acute change: lactate 2.8, repeat blood cultures drawn. Empiric antibiotics broadened to vanc and zosyn."
+  },
+  {
+    "subject_id": 1001,
+    "anchor_hadm_id": 100001,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-06-02",
+    "anchor_text": "MICU progress note: Hypotension persists despite 4L crystalloid. Norepinephrine started, vasopressin added. Blood cultures pending. Lactate 3.8."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "ECG",
+    "anchor_date": "2151-01-05",
+    "anchor_text": "Cardiology: telemetry shows occasional PVCs, otherwise NSR. Echo shows preserved EF 55%."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Radiology",
+    "anchor_date": "2151-01-16",
+    "anchor_text": "Stable overnight: vitals within normal limits, no recurrence of hypotension. Reducing fluid maintenance."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Discharge summary",
+    "anchor_date": "2151-01-01",
+    "anchor_text": "Daily progress: continued mechanical ventilation, weaning sedation, hemodynamically stable on low-dose pressors."
+  },
+  {
+    "subject_id": 1001,
+    "anchor_hadm_id": 100001,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-06-04",
+    "anchor_text": "Pulmonary update: Worsening hypoxemia, intubated for respiratory failure. ARDSnet ventilation initiated. PEEP 12, FiO2 70%."
+  },
+  {
+    "subject_id": 1007,
+    "anchor_hadm_id": 100007,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-12-07",
+    "anchor_text": "Admission note: 33-week GA newborn delivered via C-section for fetal distress. Apgars 5 and 7. Respiratory distress noted at birth."
+  },
+  {
+    "subject_id": 1004,
+    "anchor_hadm_id": 100004,
+    "anchor_category": "Echo",
+    "anchor_date": "2150-09-19",
+    "anchor_text": "Post-op day 1: Stable post-CABG, extubated, sinus rhythm at 84. Pain controlled with morphine PCA. Chest tubes draining serosanguinous."
+  },
+  {
+    "subject_id": 1014,
+    "anchor_hadm_id": 100014,
+    "anchor_category": "Echo",
+    "anchor_date": "2150-07-04",
+    "anchor_text": "ICU day 2: Worsening encephalopathy, intubated for airway protection. Total bilirubin up to 18. INR 2.8."
+  },
+  {
+    "subject_id": 1016,
+    "anchor_hadm_id": 100016,
+    "anchor_category": "Echo",
+    "anchor_date": "2150-09-19",
+    "anchor_text": "GI consult: EGD shows grade III esophageal varices, banded x4. Octreotide drip started. NPO."
+  },
+  {
+    "subject_id": 1013,
+    "anchor_hadm_id": 100013,
+    "anchor_category": "Echo",
+    "anchor_date": "2150-06-16",
+    "anchor_text": "Step-down transfer: Awaiting liver transplant evaluation. MELD score 28. Outpatient follow-up arranged."
+  },
+  {
+    "subject_id": 1011,
+    "anchor_hadm_id": 100011,
+    "anchor_category": "Echo",
+    "anchor_date": "2150-04-02",
+    "anchor_text": "ED presentation: Sudden right-sided weakness and dysarthria, NIH stroke scale 12. CT head negative for hemorrhage. tPA window evaluated."
+  },
+  {
+    "subject_id": 1008,
+    "anchor_hadm_id": 100008,
+    "anchor_category": "ECG",
+    "anchor_date": "2150-01-06",
+    "anchor_text": "NICU day 2: Weaning FiO2 to 25% on CPAP. Mild grunting noted on exam. Feeding via OG tube every 3 hours."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Nursing/other",
+    "anchor_date": "2151-01-03",
+    "anchor_text": "Renal update: creatinine improving from peak 3.4 to 2.1. Urine output adequate. CVVH discontinued."
+  },
+  {
+    "subject_id": 1002,
+    "anchor_hadm_id": 100002,
+    "anchor_category": "Echo",
+    "anchor_date": "2150-07-05",
+    "anchor_text": "MICU progress note: Hypotension persists despite 4L crystalloid. Norepinephrine started, vasopressin added. Blood cultures pending. Lactate 3.8."
+  },
+  {
+    "subject_id": 1006,
+    "anchor_hadm_id": 100006,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-11-08",
+    "anchor_text": "Post-op day 2: New-onset atrial fibrillation with RVR to 145. Started on amiodarone load and metoprolol. Hemodynamically stable."
+  },
+  {
+    "subject_id": 1006,
+    "anchor_hadm_id": 100006,
+    "anchor_category": "Discharge summary",
+    "anchor_date": "2150-11-07",
+    "anchor_text": "Post-op day 1: Stable post-CABG, extubated, sinus rhythm at 84. Pain controlled with morphine PCA. Chest tubes draining serosanguinous."
+  },
+  {
+    "subject_id": 1003,
+    "anchor_hadm_id": 100003,
+    "anchor_category": "Nursing/other",
+    "anchor_date": "2150-08-15",
+    "anchor_text": "MICU progress note: Hypotension persists despite 4L crystalloid. Norepinephrine started, vasopressin added. Blood cultures pending. Lactate 3.8."
+  },
+  {
+    "subject_id": 1003,
+    "anchor_hadm_id": 100003,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-08-18",
+    "anchor_text": "Day 5 progress: Pressors weaning, vasopressin off. Lactate trending down to 1.9. Cultures grew E. coli, narrowed to ceftriaxone."
+  },
+  {
+    "subject_id": 1010,
+    "anchor_hadm_id": 100010,
+    "anchor_category": "ECG",
+    "anchor_date": "2150-03-21",
+    "anchor_text": "Stroke unit admission: MRI confirms left MCA territory ischemic stroke. tPA given within window. Heparin gtt started."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Physician",
+    "anchor_date": "2151-01-07",
+    "anchor_text": "Pulmonary: weaning HFNC to 4L NC. Chest X-ray shows improving infiltrates."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Echo",
+    "anchor_date": "2151-01-09",
+    "anchor_text": "Wound care: central line removed, no signs of infection at site. Peripheral access maintained."
+  },
+  {
+    "subject_id": 1010,
+    "anchor_hadm_id": 100010,
+    "anchor_category": "Echo",
+    "anchor_date": "2150-03-23",
+    "anchor_text": "Day 4: Continued improvement. NIHSS 5. PT/OT working on transfers and ADLs. Swallow eval cleared for puree diet."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Discharge summary",
+    "anchor_date": "2151-01-10",
+    "anchor_text": "PT/OT: working on transfers, sitting at edge of bed. Tolerating chair x1 hour."
+  },
+  {
+    "subject_id": 1009,
+    "anchor_hadm_id": 100009,
+    "anchor_category": "ECG",
+    "anchor_date": "2150-02-15",
+    "anchor_text": "ED note: Patient with CKD stage 3 (baseline creatinine 1.8) underwent CT angiogram with contrast for chest pain workup."
+  },
+  {
+    "subject_id": 1016,
+    "anchor_hadm_id": 100016,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-09-20",
+    "anchor_text": "ICU day 2: Stable hemodynamically, no further bleeding. Hemoglobin 8.4 post-transfusion. Diet advanced to clears."
+  },
+  {
+    "subject_id": 1015,
+    "anchor_hadm_id": 100015,
+    "anchor_category": "Discharge summary",
+    "anchor_date": "2150-08-07",
+    "anchor_text": "GI consult: EGD shows grade III esophageal varices, banded x4. Octreotide drip started. NPO."
+  },
+  {
+    "subject_id": 1017,
+    "anchor_hadm_id": 100017,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-10-09",
+    "anchor_text": "GI consult: EGD shows grade III esophageal varices, banded x4. Octreotide drip started. NPO."
+  },
+  {
+    "subject_id": 1003,
+    "anchor_hadm_id": 100003,
+    "anchor_category": "Nursing/other",
+    "anchor_date": "2150-08-16",
+    "anchor_text": "Renal note: Acute kidney injury, creatinine up from 1.0 to 2.6. Urine output minimal at 15 mL/hr. CVVH being considered."
+  },
+  {
+    "subject_id": 1007,
+    "anchor_hadm_id": 100007,
+    "anchor_category": "Nursing/other",
+    "anchor_date": "2150-12-09",
+    "anchor_text": "NICU day 2: Weaning FiO2 to 25% on CPAP. Mild grunting noted on exam. Feeding via OG tube every 3 hours."
+  },
+  {
+    "subject_id": 1005,
+    "anchor_hadm_id": 100005,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-10-19",
+    "anchor_text": "Post-op day 1: Stable post-CABG, extubated, sinus rhythm at 84. Pain controlled with morphine PCA. Chest tubes draining serosanguinous."
+  },
+  {
+    "subject_id": 1014,
+    "anchor_hadm_id": 100014,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-07-05",
+    "anchor_text": "ICU day 3: Family meeting today. Patient on transplant list. Discussed prognosis and goals of care."
+  },
+  {
+    "subject_id": 1005,
+    "anchor_hadm_id": 100005,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-10-22",
+    "anchor_text": "POD 4: Successful cardioversion to sinus rhythm. Anticoagulation with apixaban for AFib. Discharge planning underway."
+  },
+  {
+    "subject_id": 1011,
+    "anchor_hadm_id": 100011,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-04-03",
+    "anchor_text": "Stroke unit admission: MRI confirms left MCA territory ischemic stroke. tPA given within window. Heparin gtt started."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Radiology",
+    "anchor_date": "2151-01-17",
+    "anchor_text": "Cardiology repeat echo: unchanged from prior, EF preserved. No new wall motion abnormalities."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Discharge summary",
+    "anchor_date": "2151-01-11",
+    "anchor_text": "Pharmacy: medication reconciliation complete. Home meds resumed where appropriate."
+  },
+  {
+    "subject_id": 1009,
+    "anchor_hadm_id": 100009,
+    "anchor_category": "Discharge summary",
+    "anchor_date": "2150-02-17",
+    "anchor_text": "Inpatient day 3: Creatinine peaked at 3.4. Urine output improving to 30 mL/hr. Continuing hydration. No dialysis indicated."
+  },
+  {
+    "subject_id": 1016,
+    "anchor_hadm_id": 100016,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-09-18",
+    "anchor_text": "ED: Patient with cirrhosis presents with hematemesis and melena. Hemoglobin 6.8. Transfused 2 units PRBC."
+  },
+  {
+    "subject_id": 1002,
+    "anchor_hadm_id": 100002,
+    "anchor_category": "Nursing/other",
+    "anchor_date": "2150-07-07",
+    "anchor_text": "Pulmonary update: Worsening hypoxemia, intubated for respiratory failure. ARDSnet ventilation initiated. PEEP 12, FiO2 70%."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Physician",
+    "anchor_date": "2151-01-15",
+    "anchor_text": "Recovery: hemodynamics improved with 2L bolus. Source unclear, blood cultures pending. Continuing broad coverage."
+  },
+  {
+    "subject_id": 1012,
+    "anchor_hadm_id": 100012,
+    "anchor_category": "Nursing/other",
+    "anchor_date": "2150-05-08",
+    "anchor_text": "ED presentation: Sudden right-sided weakness and dysarthria, NIH stroke scale 12. CT head negative for hemorrhage. tPA window evaluated."
+  },
+  {
+    "subject_id": 1001,
+    "anchor_hadm_id": 100001,
+    "anchor_category": "Echo",
+    "anchor_date": "2150-06-01",
+    "anchor_text": "Admission note: 62-year-old man presents with fever 39.4, hypotension, lactate 4.5, started on broad-spectrum antibiotics meropenem and vancomycin. Sepsis workup underway."
+  },
+  {
+    "subject_id": 1015,
+    "anchor_hadm_id": 100015,
+    "anchor_category": "Discharge summary",
+    "anchor_date": "2150-08-06",
+    "anchor_text": "ED: Patient with cirrhosis presents with hematemesis and melena. Hemoglobin 6.8. Transfused 2 units PRBC."
+  },
+  {
+    "subject_id": 1009,
+    "anchor_hadm_id": 100009,
+    "anchor_category": "Nursing/other",
+    "anchor_date": "2150-02-18",
+    "anchor_text": "Discharge: Creatinine trending down to 2.1, near baseline. Nephrology follow-up scheduled. Avoid future contrast."
+  },
+  {
+    "subject_id": 1004,
+    "anchor_hadm_id": 100004,
+    "anchor_category": "Echo",
+    "anchor_date": "2150-09-20",
+    "anchor_text": "Post-op day 2: New-onset atrial fibrillation with RVR to 145. Started on amiodarone load and metoprolol. Hemodynamically stable."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "ECG",
+    "anchor_date": "2151-01-20",
+    "anchor_text": "Final note: stable for discharge to subacute rehab. Outpatient follow-up with PCP and pulmonary scheduled."
+  },
+  {
+    "subject_id": 1008,
+    "anchor_hadm_id": 100008,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-01-05",
+    "anchor_text": "NICU day 1: Infant placed on CPAP +5, FiO2 35%. Chest X-ray consistent with TTN. Maintaining oxygen saturation 92-96%."
+  },
+  {
+    "subject_id": 1010,
+    "anchor_hadm_id": 100010,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-03-22",
+    "anchor_text": "Day 2: Mild improvement in motor function, NIHSS now 8. Started on aspirin and atorvastatin. Speech therapy evaluating."
+  },
+  {
+    "subject_id": 1013,
+    "anchor_hadm_id": 100013,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-06-14",
+    "anchor_text": "ICU day 3: Family meeting today. Patient on transplant list. Discussed prognosis and goals of care."
+  },
+  {
+    "subject_id": 1013,
+    "anchor_hadm_id": 100013,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-06-15",
+    "anchor_text": "ICU day 5: Mental status improving on lactulose and rifaximin. Extubated. INR 2.0 with vitamin K."
+  },
+  {
+    "subject_id": 1003,
+    "anchor_hadm_id": 100003,
+    "anchor_category": "Nursing/other",
+    "anchor_date": "2150-08-14",
+    "anchor_text": "Admission note: 62-year-old man presents with fever 39.4, hypotension, lactate 4.5, started on broad-spectrum antibiotics meropenem and vancomycin. Sepsis workup underway."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Echo",
+    "anchor_date": "2151-01-18",
+    "anchor_text": "GI consult: mild transaminitis, attributed to sepsis and medication. Trending labs."
+  },
+  {
+    "subject_id": 1005,
+    "anchor_hadm_id": 100005,
+    "anchor_category": "ECG",
+    "anchor_date": "2150-10-21",
+    "anchor_text": "POD 3: AFib persists despite rate control. Considering DCCV. Hemoglobin stable at 9.4. Drains pulled today."
+  },
+  {
+    "subject_id": 1005,
+    "anchor_hadm_id": 100005,
+    "anchor_category": "Discharge summary",
+    "anchor_date": "2150-10-20",
+    "anchor_text": "Post-op day 2: New-onset atrial fibrillation with RVR to 145. Started on amiodarone load and metoprolol. Hemodynamically stable."
+  },
+  {
+    "subject_id": 1004,
+    "anchor_hadm_id": 100004,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-09-18",
+    "anchor_text": "Pre-op note: 68-year-old with three-vessel disease, scheduled for CABG x3. EF 45%, no prior MI."
+  },
+  {
+    "subject_id": 1002,
+    "anchor_hadm_id": 100002,
+    "anchor_category": "ECG",
+    "anchor_date": "2150-07-06",
+    "anchor_text": "Renal note: Acute kidney injury, creatinine up from 1.0 to 2.6. Urine output minimal at 15 mL/hr. CVVH being considered."
+  },
+  {
+    "subject_id": 1003,
+    "anchor_hadm_id": 100003,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-08-17",
+    "anchor_text": "Pulmonary update: Worsening hypoxemia, intubated for respiratory failure. ARDSnet ventilation initiated. PEEP 12, FiO2 70%."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Physician",
+    "anchor_date": "2151-01-02",
+    "anchor_text": "Progress note: extubated successfully, on high-flow nasal cannula 40L 50%. Saturating 95%."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Radiology",
+    "anchor_date": "2151-01-04",
+    "anchor_text": "Neuro check: alert and oriented x3 after extubation. No focal deficits. Family at bedside."
+  },
+  {
+    "subject_id": 1005,
+    "anchor_hadm_id": 100005,
+    "anchor_category": "Discharge summary",
+    "anchor_date": "2150-10-18",
+    "anchor_text": "Pre-op note: 68-year-old with three-vessel disease, scheduled for CABG x3. EF 45%, no prior MI."
+  },
+  {
+    "subject_id": 1008,
+    "anchor_hadm_id": 100008,
+    "anchor_category": "Physician",
+    "anchor_date": "2150-01-04",
+    "anchor_text": "Admission note: 33-week GA newborn delivered via C-section for fetal distress. Apgars 5 and 7. Respiratory distress noted at birth."
+  },
+  {
+    "subject_id": 1013,
+    "anchor_hadm_id": 100013,
+    "anchor_category": "Radiology",
+    "anchor_date": "2150-06-12",
+    "anchor_text": "Hepatology consult: 55-year-old with Hep C cirrhosis, presents with encephalopathy. Ammonia 187. Started on lactulose."
+  },
+  {
+    "subject_id": 1014,
+    "anchor_hadm_id": 100014,
+    "anchor_category": "ECG",
+    "anchor_date": "2150-07-03",
+    "anchor_text": "Hepatology consult: 55-year-old with Hep C cirrhosis, presents with encephalopathy. Ammonia 187. Started on lactulose."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "ECG",
+    "anchor_date": "2151-01-19",
+    "anchor_text": "Discharge planning: rehab facility identified. Family meeting scheduled for tomorrow."
+  },
+  {
+    "subject_id": 1014,
+    "anchor_hadm_id": 100014,
+    "anchor_category": "ECG",
+    "anchor_date": "2150-07-06",
+    "anchor_text": "ICU day 5: Mental status improving on lactulose and rifaximin. Extubated. INR 2.0 with vitamin K."
+  },
+  {
+    "subject_id": 9999,
+    "anchor_hadm_id": 999999,
+    "anchor_category": "Discharge summary",
+    "anchor_date": "2151-01-13",
+    "anchor_text": "Acute change: sudden tachycardia to 140s, hypotension. Rapid response called. Fluids bolused."
+  },
+  {
+    "subject_id": 1009,
+    "anchor_hadm_id": 100009,
+    "anchor_category": "Nursing/other",
+    "anchor_date": "2150-02-16",
+    "anchor_text": "Inpatient day 2: Creatinine up to 2.6, urine output oliguric. Started on IV fluids and bicarbonate. Nephrology consulted."
+  }
+]

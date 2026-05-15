@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Clinical Embedding Studio</title>
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <link rel="stylesheet" href="/style.css?v=3" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <link rel="icon" href="data:," />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+          <path d="M8 13h8M8 17h5M13 3v6h6" />
+        </svg>
+      </span>
+      <div class="brand-text">
+        <div class="brand-title">Clinical Embedding Studio</div>
+        <div class="brand-subtitle">MIMIC-III · fine-tuned EmbeddingGemma</div>
+      </div>
+    </div>
+
+    <div id="status" class="status">
+      <span class="status-dot" data-state="loading" aria-hidden="true"></span>
+      <span class="status-text">Initializing corpus&hellip;</span>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="search" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      Note search
+    </button>
+    <button class="tab" data-tab="ask" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+      Evidence Q&amp;A
+    </button>
+    <button class="tab" data-tab="cohort" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Cohort discovery
+    </button>
+    <button class="tab" data-tab="trajectory" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-7"/></svg>
+      Patient trajectory
+    </button>
+  </nav>
+
+  <main>
+    <!-- ====== Note search ====== -->
+    <section id="tab-search" class="tab-panel active">
+      <div class="panel-header">
+        <h2>Note search</h2>
+        <p>Free-text query is encoded with the same fine-tuned model that produced the corpus, then ranked by cosine similarity over the FAISS index.</p>
+      </div>
+
+      <form id="search-form" class="query-bar" autocomplete="off">
+        <input type="text" id="search-query" class="query-input"
+               placeholder="e.g. patient with septic shock requiring vasopressors" required />
+
+        <div class="popover">
+          <button type="button" class="popover-trigger" aria-expanded="false" aria-controls="search-settings" title="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Settings</span>
+          </button>
+          <div id="search-settings" class="popover-panel" role="dialog">
+            <div class="popover-field">
+              <label for="search-k">Results (top-k)</label>
+              <input type="number" id="search-k" value="10" min="1" max="50" />
+            </div>
+            <div class="popover-field">
+              <label for="search-snippet">Snippet length (chars)</label>
+              <input type="number" id="search-snippet" value="300" min="80" max="2000" step="20" />
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="primary">Search</button>
+      </form>
+
+      <div id="search-meta" class="result-meta" hidden></div>
+      <div id="search-result" class="result"></div>
+    </section>
+
+    <!-- ====== Evidence Q&A ====== -->
+    <section id="tab-ask" class="tab-panel">
+      <div class="panel-header">
+        <h2>Evidence Q&amp;A</h2>
+        <p>Top-k retrieved notes are passed to an LLM as evidence. <strong>Evidence mode</strong> lets the model synthesize patterns across cases with <code>[Note N]</code> citations; <strong>strict mode</strong> refuses unless the literal answer is in the retrieved text (for grounded-retrieval benchmarks).</p>
+      </div>
+
+      <form id="ask-form" class="query-bar query-bar-stacked" autocomplete="off">
+        <textarea id="ask-question" class="query-input" rows="2"
+                  placeholder="e.g. What management interventions are described for patients in septic shock?" required></textarea>
+
+        <div class="query-actions">
+          <div class="popover">
+            <button type="button" class="popover-trigger" aria-expanded="false" aria-controls="ask-settings" title="Settings">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>Settings</span>
+            </button>
+            <div id="ask-settings" class="popover-panel" role="dialog">
+              <div class="popover-field">
+                <label for="ask-mode">Mode</label>
+                <select id="ask-mode">
+                  <option value="evidence" selected>Evidence (synthesize)</option>
+                  <option value="strict">Strict (literal only)</option>
+                </select>
+                <p class="field-hint">Evidence is the default for exploratory questions; switch to Strict for benchmark-style grounded retrieval.</p>
+              </div>
+              <div class="popover-field">
+                <label for="ask-k">Retrieved notes (top-k)</label>
+                <input type="number" id="ask-k" value="5" min="1" max="20" />
+              </div>
+              <div class="popover-field">
+                <label for="ask-model">LLM</label>
+                <select id="ask-model">
+                  <option value="gpt-4o-mini" selected>gpt-4o-mini</option>
+                  <option value="gpt-4o">gpt-4o</option>
+                  <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="primary">Ask</button>
+        </div>
+      </form>
+
+      <div id="ask-meta" class="result-meta" hidden></div>
+      <div id="ask-result" class="result"></div>
+    </section>
+
+    <!-- ====== Cohort discovery ====== -->
+    <section id="tab-cohort" class="tab-panel">
+      <div class="panel-header">
+        <h2>Cohort discovery</h2>
+        <p>Find clinically similar patients in two ways. <strong>By patient</strong> uses each patient's mean-pooled embedding to retrieve neighbors of a seed patient, reporting ICD-9 chapter Jaccard overlap. <strong>By description</strong> encodes a free-text clinical phenotype with the same fine-tuned model and ranks patients by cosine similarity.</p>
+      </div>
+
+      <div class="mode-switch" role="tablist" data-mode-group="cohort">
+        <button type="button" class="mode-btn active" data-cohort-mode="patient" role="tab">By patient</button>
+        <button type="button" class="mode-btn" data-cohort-mode="text" role="tab">By description</button>
+      </div>
+
+      <form id="cohort-form" class="query-bar" autocomplete="off">
+        <select id="cohort-patient" class="query-input" data-cohort-input="patient"></select>
+        <input type="text" id="cohort-text" class="query-input" data-cohort-input="text"
+               placeholder="e.g. elderly diabetic patient with acute kidney injury and respiratory failure" hidden />
+
+        <div class="popover">
+          <button type="button" class="popover-trigger" aria-expanded="false" aria-controls="cohort-settings" title="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Settings</span>
+          </button>
+          <div id="cohort-settings" class="popover-panel" role="dialog">
+            <div class="popover-field">
+              <label for="cohort-k">Neighbors (top-k)</label>
+              <input type="number" id="cohort-k" value="10" min="1" max="50" />
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="primary">Find cohort</button>
+      </form>
+
+      <div id="cohort-meta" class="result-meta" hidden></div>
+      <div id="cohort-result" class="result"></div>
+    </section>
+
+    <!-- ====== Trajectory ====== -->
+    <section id="tab-trajectory" class="tab-panel">
+      <div class="panel-header">
+        <h2>Patient trajectory</h2>
+        <p>Per-patient sequence of anchor notes ordered chronologically. The velocity plot shows L2 distance between consecutive note embeddings — spikes are candidate inflection points (acuity changes, transfers). The PCA plot is a 2-D projection of the patient's note embeddings, colored by note order.</p>
+      </div>
+
+      <form id="trajectory-form" class="query-bar" autocomplete="off">
+        <select id="trajectory-patient" class="query-input"></select>
+        <button type="submit" class="primary">Plot trajectory</button>
+      </form>
+
+      <div id="trajectory-stats" class="trajectory-stats" hidden></div>
+      <div class="chart-grid">
+        <div id="trajectory-velocity" class="chart-card"></div>
+        <div id="trajectory-pca" class="chart-card"></div>
+      </div>
+      <div id="trajectory-interpret" class="interpret-card" hidden></div>
+    </section>
+  </main>
+
+  <footer class="appfoot">
+    <span>Research use only · Not for clinical decision support</span>
+    <span class="appfoot-sep">·</span>
+    <span id="footer-corpus">corpus: &hellip;</span>
+  </footer>
+
+  <script src="/app.js?v=4"></script>
+</body>
+</html>

@@ -208,19 +208,56 @@ def search(
     return pd.DataFrame(rows)
 
 
+SYSTEM_PROMPT_EVIDENCE = (
+    "You are a clinical research assistant. Use the retrieved patient notes as the "
+    "primary evidence to answer the user's question.\n\n"
+    "Rules:\n"
+    "- Ground every specific factual claim about the cases in the notes; cite as [Note N].\n"
+    "- You may synthesize patterns across multiple notes (e.g., common interventions, "
+    "recurring findings, typical disease progression seen in the cases).\n"
+    "- You may add ONE brief sentence of general clinical context if it helps the reader "
+    "interpret the cases, but prefix it with 'Context (general):' so it is clearly not "
+    "drawn from the notes.\n"
+    "- If the retrieved notes are clearly off-topic and provide no useful evidence, say "
+    "'The retrieved notes are not relevant to this question' and stop. Do NOT speculate "
+    "about cases the notes do not describe.\n"
+    "- Do NOT give individual clinical advice. This is for research/education.\n\n"
+    "Output structure:\n"
+    "1. One short sentence directly answering the question.\n"
+    "2. 2-4 bullet points of specific findings from the notes, each ending with [Note N] citations.\n"
+    "3. Optional final line beginning 'Context (general):' if useful."
+)
+
+SYSTEM_PROMPT_STRICT = (
+    "You are a clinical research assistant. Answer the user's question using ONLY "
+    "the retrieved clinical notes provided. Cite specific Note IDs (e.g., 'Note 3') "
+    "when referencing facts. If the retrieved notes do not contain the answer, "
+    "say 'The retrieved notes do not answer this question' and do not speculate. "
+    "Do not provide clinical advice; this is a research task."
+)
+
+
 def ask(
     corpus: CorpusIndex,
     question: str,
     k: int = 5,
     openai_model: str = "gpt-4o-mini",
     max_note_chars: int = 1500,
+    mode: str = "evidence",
 ) -> dict:
     """
     Retrieval-augmented answer to a clinical question.
 
     Retrieves top-k notes, formats them with note IDs, and asks an OpenAI chat
-    model to answer using ONLY those notes (with explicit "I don't know" if
-    the answer isn't grounded in retrieved text).
+    model to answer based on those notes.
+
+    `mode` controls how strictly the LLM is constrained:
+      - "evidence" (default): notes are the primary evidence, but the LLM may
+        synthesize patterns across cases and add one flagged sentence of
+        general context. More useful for exploratory questions.
+      - "strict": LLM may only quote/cite facts directly present in the notes;
+        refuses if the literal answer isn't in the retrieved text. Use for
+        grounded-retrieval benchmarks.
 
     If `OPENAI_API_KEY` (or `OPENAI-API-KEY`) is not set, returns the retrieved
     notes only with `answer=None`. This keeps the notebook runnable without an
@@ -234,6 +271,7 @@ def ask(
             "question": question,
             "retrieved": retrieved,
             "answer": None,
+            "mode": mode,
             "note": "OPENAI_API_KEY not set; returning retrieval only.",
         }
 
@@ -243,19 +281,16 @@ def ask(
     context_blocks = []
     for _, r in retrieved.iterrows():
         context_blocks.append(
-            f"[Note {r['rank']}  patient={r['subject_id']}  hadm={r['anchor_hadm_id']}  "
-            f"category={r['category']}  date={r['date']}  icd={r['icd_codes'][:5]}]\n"
-            f"{r['snippet']}"
+            f"[Note {r['rank']}  similarity={r['similarity']:.3f}  patient={r['subject_id']}  "
+            f"hadm={r['anchor_hadm_id']}  category={r['category']}  date={r['date']}  "
+            f"icd={r['icd_codes'][:5]}]\n{r['snippet']}"
         )
     context = "\n\n---\n\n".join(context_blocks)
 
-    system = (
-        "You are a clinical research assistant. Answer the user's question using ONLY "
-        "the retrieved clinical notes provided. Cite specific Note IDs (e.g., 'Note 3') "
-        "when referencing facts. If the retrieved notes do not contain the answer, "
-        "say 'The retrieved notes do not answer this question' and do not speculate. "
-        "Do not provide clinical advice; this is a research task."
-    )
+    if mode == "strict":
+        system = SYSTEM_PROMPT_STRICT
+    else:
+        system = SYSTEM_PROMPT_EVIDENCE
     user_msg = f"Question: {question}\n\nRetrieved notes:\n\n{context}"
 
     resp = client.chat.completions.create(
@@ -271,6 +306,7 @@ def ask(
         "retrieved": retrieved,
         "answer": resp.choices[0].message.content,
         "model": openai_model,
+        "mode": mode,
     }
 
 
@@ -294,6 +330,26 @@ def patient_level_embeddings(corpus: CorpusIndex) -> tuple[np.ndarray, np.ndarra
     return np.asarray(sids), np.asarray(pooled, dtype="float32")
 
 
+def _patient_chapters(corpus: CorpusIndex, subject_id: int) -> set[str]:
+    """Distinct ICD-9 chapters a patient's admissions cover.
+
+    Used by cohort-discovery utilities. Lifted out of find_similar_patients
+    so the by-text and by-patient flows share it.
+    """
+    from preprocess import get_icd_chapter
+
+    rows = corpus.meta[corpus.meta["subject_id"] == subject_id]
+    chapters: set[str] = set()
+    for hadm in rows["anchor_hadm_id"].dropna().unique():
+        try:
+            key = str(int(hadm))
+        except (TypeError, ValueError):
+            continue
+        for c in corpus.icd_map.get(key, []):
+            chapters.add(get_icd_chapter(c))
+    return chapters
+
+
 def find_similar_patients(
     corpus: CorpusIndex,
     subject_id: int,
@@ -307,8 +363,6 @@ def find_similar_patients(
     check — for two patients to be "similar" in the embedding space we'd want
     their diagnosis chapters to overlap above the random baseline.
     """
-    from preprocess import get_icd_chapter
-
     if pooled is None:
         sids, patient_embs = patient_level_embeddings(corpus)
     else:
@@ -322,24 +376,12 @@ def find_similar_patients(
     sims = patient_embs @ seed_vec
     order = np.argsort(-sims)
 
-    def _patient_chapters(sid: int) -> set[str]:
-        rows = corpus.meta[corpus.meta["subject_id"] == sid]
-        chapters: set[str] = set()
-        for hadm in rows["anchor_hadm_id"].dropna().unique():
-            try:
-                key = str(int(hadm))
-            except (TypeError, ValueError):
-                continue
-            for c in corpus.icd_map.get(key, []):
-                chapters.add(get_icd_chapter(c))
-        return chapters
-
-    seed_chap = _patient_chapters(subject_id)
+    seed_chap = _patient_chapters(corpus, subject_id)
     rows = []
     for j in order[:k + 1]:
         if int(sids[j]) == subject_id:
             continue
-        other_chap = _patient_chapters(int(sids[j]))
+        other_chap = _patient_chapters(corpus, int(sids[j]))
         union = seed_chap | other_chap
         inter = seed_chap & other_chap
         jaccard = len(inter) / len(union) if union else 0.0
@@ -354,6 +396,126 @@ def find_similar_patients(
         if len(rows) >= k:
             break
     return pd.DataFrame(rows)
+
+
+def find_similar_patients_by_text(
+    corpus: CorpusIndex,
+    query: str,
+    k: int = 10,
+    pooled: tuple[np.ndarray, np.ndarray] | None = None,
+) -> pd.DataFrame:
+    """Free-text description -> cohort, via patient-level mean-pooled embeddings.
+
+    Encodes the description with the same fine-tuned model used to build the
+    corpus, then ranks patients by cosine similarity of their mean-pooled
+    embedding to the query. Returns the top-k patients with their note count,
+    ICD-9 chapters, and the seed-vs-patient cosine similarity.
+    """
+    if pooled is None:
+        sids, patient_embs = patient_level_embeddings(corpus)
+    else:
+        sids, patient_embs = pooled
+
+    q = corpus.encode(query)  # (1, D), L2-normalized
+    sims = (patient_embs @ q[0]).astype(float)
+    order = np.argsort(-sims)
+
+    rows = []
+    for j in order[:k]:
+        sid = int(sids[j])
+        n_notes = int((corpus.meta["subject_id"] == sid).sum())
+        chapters = sorted(_patient_chapters(corpus, sid))
+        rows.append({
+            "rank": len(rows) + 1,
+            "similarity": float(sims[j]),
+            "subject_id": sid,
+            "n_notes": n_notes,
+            "chapters": chapters,
+            "n_chapters": len(chapters),
+        })
+    return pd.DataFrame(rows)
+
+
+def interpret_trajectory(
+    corpus: CorpusIndex,
+    subject_id: int,
+    openai_model: str = "gpt-4o-mini",
+    spike_quantile: float = 0.95,
+    max_note_chars: int = 280,
+) -> dict:
+    """LLM-generated natural-language summary of a patient's trajectory.
+
+    Builds a chronological timeline of the patient's anchor notes (date,
+    category, L2 to previous embedding, truncated text), flags spike notes
+    above the configured quantile, and asks an OpenAI chat model to produce
+    a course summary, 1-3 inflection points, and a pattern label.
+
+    Falls back to `answer=None` + a `note` when no API key is configured,
+    matching the behaviour of `ask()`.
+    """
+    traj = patient_trajectory(corpus, subject_id)
+    notes_df = traj["notes"].copy()
+
+    l2 = notes_df["l2_prev"].to_numpy(dtype=float)
+    valid_l2 = l2[1:] if len(l2) > 1 else l2
+    spike_threshold = float(np.quantile(valid_l2, spike_quantile)) if len(valid_l2) else 0.0
+
+    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI-API-KEY")
+    if not api_key:
+        return {
+            "subject_id": int(subject_id),
+            "answer": None,
+            "spike_threshold": spike_threshold,
+            "note": "OPENAI_API_KEY not set; interpretation unavailable.",
+        }
+
+    timeline_lines = []
+    for i, (_, r) in enumerate(notes_df.iterrows()):
+        row_id = int(r["row_id"])
+        text = corpus.meta.loc[row_id, "anchor_text"] or ""
+        text = " ".join(text.split())[:max_note_chars]
+        is_spike = (i > 0) and (float(r["l2_prev"]) > spike_threshold)
+        tag = " [SPIKE]" if is_spike else ""
+        timeline_lines.append(
+            f"#{i} | {r['anchor_date']} | {r['anchor_category']} | "
+            f"L2_prev={float(r['l2_prev']):.3f}{tag}\n  {text}"
+        )
+    timeline = "\n".join(timeline_lines)
+
+    system = (
+        "You are a clinical research assistant analyzing a patient's clinical "
+        "embedding trajectory. Each note has an L2 distance to the previous "
+        "note's embedding — large values (marked [SPIKE]) indicate semantic "
+        "shifts (acuity change, transfer, new diagnosis, course reversal). "
+        "Based ONLY on the supplied note timeline, produce:\n\n"
+        "1. A 1-2 sentence summary of the patient's clinical course.\n"
+        "2. 1-3 inflection points, each formatted as: '- Note #N (L2=X.XX) — short interpretation grounded in the note text.'\n"
+        "3. An overall pattern label, exactly one of {stable, improving, declining, volatile, mixed}, with one short justification sentence.\n\n"
+        "Output as markdown with three bold section headers exactly: **Course summary**, **Inflection points**, **Pattern**. "
+        "Cite note indices as [#N]. Do not speculate beyond the notes. Do not provide individual clinical advice."
+    )
+    user_msg = (
+        f"Patient {subject_id} | {len(notes_df)} notes | p95 spike threshold L2={spike_threshold:.3f}.\n\n"
+        f"Timeline:\n{timeline}"
+    )
+
+    from openai import OpenAI
+    client = OpenAI(api_key=api_key)
+    resp = client.chat.completions.create(
+        model=openai_model,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_msg},
+        ],
+        temperature=0.0,
+    )
+    return {
+        "subject_id": int(subject_id),
+        "answer": resp.choices[0].message.content,
+        "model": openai_model,
+        "spike_threshold": spike_threshold,
+        "n_notes": int(len(notes_df)),
+    }
 
 
 def patient_trajectory(
