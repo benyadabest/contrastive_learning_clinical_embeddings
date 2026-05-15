@@ -4,12 +4,17 @@ Evaluation pipeline for clinical embeddings.
 Tasks:
 1. Note Recall: top-k accuracy of retrieving the next note for a patient
 2. Diagnosis Prediction: multi-label ICD classification from frozen embeddings
-3. UMAP Visualization: embedding space colored by diagnosis
+3. UMAP Visualization: embedding space colored by diagnosis chapter
+4. UMAP-by-category vs. UMAP-by-chapter (pair-anchor variant): tests whether
+   the embedding geometry is driven by clinical content (ICD chapter) or by
+   stylistic note-template structure (NOTEEVENTS.CATEGORY).
 
 Usage:
     python src/evaluate.py --task recall --model google/embeddinggemma-300m
     python src/evaluate.py --task diagnosis --embeddings embeddings/embeddings_google_embeddinggemma_300m.npy
     python src/evaluate.py --task umap --embeddings embeddings/embeddings_google_embeddinggemma_300m.npy
+    python src/evaluate.py --task umap-anchors --model models_embeddinggemma_hierarchical_best
+    python src/evaluate.py --task umap-anchors --all-models
 """
 
 from __future__ import annotations
@@ -21,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, silhouette_score
 from sklearn.model_selection import train_test_split
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.preprocessing import MultiLabelBinarizer
@@ -29,6 +34,14 @@ from sklearn.preprocessing import MultiLabelBinarizer
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 EMBEDDINGS_DIR = Path(__file__).resolve().parent.parent / "embeddings"
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
+
+PAIR_ANCHOR_MODELS = [
+    "google_embeddinggemma_300m",
+    "models_embeddinggemma_infonce_best",
+    "models_embeddinggemma_hierarchical_best",
+    "text_embedding_3_small",
+    "text_embedding_3_large",
+]
 
 
 def evaluate_note_recall(
@@ -208,6 +221,247 @@ def create_umap_visualization(
     plt.close()
 
 
+def _build_anchor_metadata(
+    pairs: list[dict],
+    icd_map: dict[str, list[str]],
+) -> tuple[list[str], list[str]]:
+    """
+    For every anchor in `pairs`, derive (category, primary_chapter).
+
+    - category comes from `anchor_category` (NOTEEVENTS.CATEGORY of the anchor note).
+    - primary_chapter is the ICD-9 chapter of the *first* code on the anchor admission;
+      "none" if the admission has no codes; "unknown" if the code falls outside known
+      chapters.
+    """
+    from preprocess import get_icd_chapter
+
+    categories: list[str] = []
+    chapters: list[str] = []
+    for p in pairs:
+        cat = p.get("anchor_category")
+        if not isinstance(cat, str) or not cat:
+            cat = "unknown"
+        categories.append(cat)
+
+        hadm = p.get("anchor_hadm_id")
+        chap = "none"
+        if hadm is not None:
+            try:
+                codes = icd_map.get(str(int(hadm)), [])
+            except (TypeError, ValueError):
+                codes = []
+            if codes:
+                chap = get_icd_chapter(codes[0])
+        chapters.append(chap)
+    return categories, chapters
+
+
+def _scatter_by_label(
+    coords: np.ndarray,
+    labels: list[str],
+    title: str,
+    output_path: Path,
+    legend_max: int = 25,
+) -> None:
+    """Scatter `coords` colored by `labels`, with a legend (truncated if too long)."""
+    import matplotlib.pyplot as plt
+
+    labels_arr = np.asarray(labels)
+    counts = pd.Series(labels_arr).value_counts()
+    unique = counts.index.tolist()
+    cmap = plt.cm.tab20
+    if len(unique) > 20:
+        cmap = plt.cm.gist_ncar
+    colors = cmap(np.linspace(0, 1, max(len(unique), 2)))
+
+    fig, ax = plt.subplots(figsize=(14, 10))
+    for label, color in zip(unique, colors):
+        mask = labels_arr == label
+        display = label.split("_", 1)[-1] if "_" in label else label
+        display = f"{display}  (n={int(mask.sum())})"
+        ax.scatter(
+            coords[mask, 0], coords[mask, 1],
+            c=[color], label=display, s=5, alpha=0.6,
+        )
+
+    ax.set_title(title)
+    handles, labs = ax.get_legend_handles_labels()
+    if len(handles) > legend_max:
+        handles, labs = handles[:legend_max], labs[:legend_max]
+        labs[-1] = labs[-1] + " ..."
+    ax.legend(
+        handles, labs,
+        bbox_to_anchor=(1.05, 1), loc="upper left",
+        markerscale=3, fontsize=8,
+    )
+    plt.tight_layout()
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close()
+
+
+def umap_pair_anchors(
+    model_safe_name: str,
+    pairs_path: Path = DATA_DIR / "temporal_pairs_small.json",
+    icd_map_path: Path = DATA_DIR / "icd_hierarchy.json",
+    embeddings_dir: Path = EMBEDDINGS_DIR,
+    output_dir: Path = RESULTS_DIR,
+    n_samples: int = 5000,
+    seed: int = 42,
+    silhouette_n: int = 5000,
+) -> dict:
+    """
+    Generate parallel UMAPs of the anchor embeddings for one model, colored by
+    (a) primary ICD chapter and (b) anchor note category. Computes silhouette
+    scores against both labelings on the *raw* high-dimensional embeddings, so
+    the visual finding has a quantitative companion.
+
+    Returns a dict of metadata + silhouette scores; also writes:
+      - {output_dir}/umap_embeddings_{model_safe_name}_by_chapter.png
+      - {output_dir}/umap_embeddings_{model_safe_name}_by_category.png
+
+    Both PNGs share identical UMAP coordinates (UMAP is fit once); only the
+    coloring differs. This is the only valid way to compare the two clusterings.
+    """
+    import umap
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    anchor_path = embeddings_dir / f"anchor_embeddings_{model_safe_name}.npy"
+    if not anchor_path.exists():
+        raise FileNotFoundError(f"Missing anchor embeddings: {anchor_path}")
+
+    # Load embeddings (mmap to avoid RAM blowups on the OpenAI-3-large 581 MB file)
+    anchors = np.load(anchor_path, mmap_mode="r")
+    n_total = anchors.shape[0]
+    print(f"[{model_safe_name}] anchor embeddings: shape={anchors.shape} dtype={anchors.dtype}")
+
+    # Load metadata
+    with open(pairs_path) as f:
+        pairs = json.load(f)
+    if len(pairs) != n_total:
+        raise ValueError(
+            f"Mismatch: {len(pairs)} pairs in {pairs_path.name} vs "
+            f"{n_total} embeddings in {anchor_path.name}. The cached embeddings "
+            "must have been generated from a different temporal_pairs file."
+        )
+    with open(icd_map_path) as f:
+        icd_map = json.load(f)
+
+    categories_full, chapters_full = _build_anchor_metadata(pairs, icd_map)
+
+    # Sample with fixed seed; materialize the sampled rows into RAM and cast to
+    # float32 (sklearn's silhouette_score is faster on float32 than float64).
+    rng = np.random.RandomState(seed)
+    if n_samples >= n_total:
+        idx = np.arange(n_total)
+    else:
+        idx = rng.choice(n_total, size=n_samples, replace=False)
+    idx_sorted = np.sort(idx)  # mmap slicing is faster on sorted indices
+    X = np.asarray(anchors[idx_sorted], dtype=np.float32)
+    cats = [categories_full[i] for i in idx_sorted]
+    chaps = [chapters_full[i] for i in idx_sorted]
+
+    # Fit UMAP once
+    print(f"[{model_safe_name}] fitting UMAP on {X.shape}...")
+    reducer = umap.UMAP(
+        n_components=2, random_state=seed, n_neighbors=15, min_dist=0.1, metric="cosine",
+    )
+    coords = reducer.fit_transform(X)
+    print(f"[{model_safe_name}] UMAP done.")
+
+    # Plot both colorings on the same coords
+    title_prefix = f"UMAP of anchor embeddings ({model_safe_name})"
+    _scatter_by_label(
+        coords, chaps,
+        title=f"{title_prefix}\ncolored by primary ICD-9 chapter",
+        output_path=output_dir / f"umap_embeddings_{model_safe_name}_by_chapter.png",
+    )
+    _scatter_by_label(
+        coords, cats,
+        title=f"{title_prefix}\ncolored by note category",
+        output_path=output_dir / f"umap_embeddings_{model_safe_name}_by_category.png",
+    )
+
+    # Silhouette scores on the raw high-dim embeddings (sub-sample for speed if
+    # needed). Higher silhouette => labels separate the embedding geometry better.
+    sil_idx = idx_sorted
+    if silhouette_n < len(sil_idx):
+        sil_pick = rng.choice(len(sil_idx), size=silhouette_n, replace=False)
+        sil_idx = idx_sorted[sil_pick]
+        X_sil = np.asarray(anchors[np.sort(sil_idx)], dtype=np.float32)
+        cats_sil = [categories_full[i] for i in np.sort(sil_idx)]
+        chaps_sil = [chapters_full[i] for i in np.sort(sil_idx)]
+    else:
+        X_sil, cats_sil, chaps_sil = X, cats, chaps
+
+    # Silhouette is undefined if a single cluster only -> filter out singletons
+    def _safe_silhouette(X_, labs):
+        labs_arr = np.asarray(labs)
+        counts = pd.Series(labs_arr).value_counts()
+        keep_labels = set(counts[counts >= 2].index)
+        keep = np.array([i for i, l in enumerate(labs_arr) if l in keep_labels])
+        if len(keep) < 50 or pd.Series(labs_arr[keep]).nunique() < 2:
+            return float("nan")
+        return float(silhouette_score(X_[keep], labs_arr[keep], metric="cosine"))
+
+    sil_chapter = _safe_silhouette(X_sil, chaps_sil)
+    sil_category = _safe_silhouette(X_sil, cats_sil)
+
+    print(
+        f"[{model_safe_name}] silhouette  by_chapter={sil_chapter:.4f}  "
+        f"by_category={sil_category:.4f}  delta(cat-chap)={sil_category - sil_chapter:+.4f}"
+    )
+
+    return {
+        "model": model_safe_name,
+        "n_anchors_total": int(n_total),
+        "n_umap_samples": int(len(idx_sorted)),
+        "n_silhouette_samples": int(len(sil_idx)),
+        "n_unique_chapters": int(pd.Series(chaps).nunique()),
+        "n_unique_categories": int(pd.Series(cats).nunique()),
+        "silhouette_by_chapter": sil_chapter,
+        "silhouette_by_category": sil_category,
+        "silhouette_delta": sil_category - sil_chapter,
+    }
+
+
+def run_umap_anchors_all(
+    models: list[str] | None = None,
+    output_dir: Path = RESULTS_DIR,
+    n_samples: int = 5000,
+) -> None:
+    """Run umap_pair_anchors for every model and persist a comparison JSON."""
+    if models is None:
+        models = PAIR_ANCHOR_MODELS
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    results = []
+    for m in models:
+        try:
+            res = umap_pair_anchors(m, output_dir=output_dir, n_samples=n_samples)
+            results.append(res)
+        except FileNotFoundError as e:
+            print(f"[skip] {m}: {e}")
+
+    out = output_dir / "umap_anchors_silhouette.json"
+    with open(out, "w") as f:
+        json.dump(results, f, indent=2)
+    print(f"\nSilhouette table -> {out}")
+
+    if results:
+        print(f"\n{'Model':<48} {'sil(chap)':<12} {'sil(cat)':<12} {'delta':<10}")
+        print("-" * 82)
+        for r in results:
+            print(
+                f"{r['model']:<48} "
+                f"{r['silhouette_by_chapter']:<12.4f} "
+                f"{r['silhouette_by_category']:<12.4f} "
+                f"{r['silhouette_delta']:<+10.4f}"
+            )
+
+
 def run_full_comparison(
     models: list[dict[str, str]],
     notes_path: Path = DATA_DIR / "notes_with_icd.csv",
@@ -272,8 +526,11 @@ def run_full_comparison(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate clinical embeddings")
-    parser.add_argument("--task", choices=["recall", "diagnosis", "umap", "compare"],
-                        default="compare")
+    parser.add_argument(
+        "--task",
+        choices=["recall", "diagnosis", "umap", "compare", "umap-anchors"],
+        default="compare",
+    )
     parser.add_argument("--embeddings", type=Path, help="Path to embeddings .npy file")
     parser.add_argument("--anchor-embeddings", type=Path)
     parser.add_argument("--positive-embeddings", type=Path)
@@ -281,6 +538,19 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, default=RESULTS_DIR)
     parser.add_argument("--output-name", type=str, default="umap_embeddings.png")
     parser.add_argument("--top-n-codes", type=int, default=25)
+    # umap-anchors task
+    parser.add_argument(
+        "--model", default=None,
+        help="Safe-name of the model for umap-anchors (e.g., models_embeddinggemma_hierarchical_best)",
+    )
+    parser.add_argument(
+        "--all-models", action="store_true",
+        help="Run umap-anchors over PAIR_ANCHOR_MODELS",
+    )
+    parser.add_argument(
+        "--n-samples", type=int, default=5000,
+        help="Sample size for UMAP fit (default 5000 for parity with existing UMAPs)",
+    )
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -325,6 +595,23 @@ def main() -> None:
             {"name": "models_embeddinggemma_hierarchical_best"}
         ]
         run_full_comparison(models, notes_path=args.notes, output_dir=args.output_dir)
+
+    elif args.task == "umap-anchors":
+        if args.all_models:
+            run_umap_anchors_all(
+                models=PAIR_ANCHOR_MODELS,
+                output_dir=args.output_dir,
+                n_samples=args.n_samples,
+            )
+        elif args.model:
+            res = umap_pair_anchors(
+                args.model,
+                output_dir=args.output_dir,
+                n_samples=args.n_samples,
+            )
+            print(json.dumps(res, indent=2))
+        else:
+            print("Error: provide either --model <safe_name> or --all-models for umap-anchors")
 
 
 if __name__ == "__main__":

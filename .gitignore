@@ -12,3 +12,6 @@ mimic-iii-clinical-database-demo-1.4/
 MIMIC -III (10000 patients)/
 data/
 .DS_Store
+medical_embeddings/
+medical_embeddings*.zip
+*.zip
