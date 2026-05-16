@@ -1,4 +1,4 @@
-majority of our work over the semester was in Google Colab!
+# Note - Majority of our work over the semester was in Google Colab! This includes training, baselines, EDA, data curation, & iteration.
 
 # Contrastive Learning for Clinical Embeddings
 
